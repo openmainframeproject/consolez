@@ -1,0 +1,164 @@
+#!/bin/bash
+#
+# This code is shipped under the Artistic License 2.0. See the file
+# Artistic-License-2.0.txt or http://opensource.org/licenses/Artistic-2.0
+#
+#+--------------------------------------------------------------------------+
+#
+# consolez - draw one Web page summarizing the health of all z/VM systems 
+#
+#---------------------------------------------------------------------------
+function thRow
+# create a table header row that spans columns and writes a title in large font
+# Arg 1: environment
+#---------------------------------------------------------------------------
+ {
+  local env=$1     
+
+  headerColor="#fff2e6"                    # a muted orange
+  startRow "#ffe6cc" 
+
+  # show headings only at the start and if they haven't shown for >= 40 lines
+  # TODO: this has to be tested - haven't had this much data yet
+  if [ "$linesInHeader" = 0 -o "$linesInHeader" -gt 40 ]; then 
+    if [ "$linesInHeader" -gt 40 ]; then
+      linesInHeader=1                      # reset counter
+    fi
+    echo "</tr>"                             # end row
+  fi
+
+  # always show the next environment in a wide row
+  echo "<tr><th style=\"background-color:$headerColor;\" colspan=\"$numCols\">"
+  echo "$env</th></tr>"                    # add text, end header and row
+ }                                         # thRow()
+
+#+--------------------------------------------------------------------------+
+function drawUserIDcell
+# Draw a userID with hot link or an empty cell 
+# Arg 1: system ID it runs on
+# Arg 2: user ID to draw 
+#+--------------------------------------------------------------------------+
+ {
+  local systemID=$1                
+  local userID=$2                 
+ 
+  if [ ${#userID} = 0 ]; then              # no more saved consoles
+    echo "<td>&nbsp;</td>"                 # empty cell 
+  else                                     # show user ID as a hot link
+    echo "<td><a style=\"color:$color;\" href=onecons?$userID&amp;$systemID>$userID</a></td>"
+  fi
+ }                                         # drawUserIDcell()
+
+#+--------------------------------------------------------------------------+
+function drawOneRow
+# Draw one table row for one z/VM LPAR - each row gets max of 10 user IDs
+#   Arg 1    : Environment:LPAR 
+#   Args 2-n : User IDs that have console data saved
+#+--------------------------------------------------------------------------+
+ {
+  local env=${1%:*}
+  local systemID=${1#*:}
+  shift                                    # skip arg 1
+  local userIDs="$@"                       # remaining user IDs
+#  local numUserIDs="$#"                    # number of remaining args
+  
+  # draw divider row for new environment
+  if [ "$curEnv" != "$env" ]; then         # this is a new environment
+    curEnv="$env"                          # new current environment
+    thRow $env                             # draw a divider row
+  fi
+
+  # draw LPAR column and up to $numCols more user IDs
+  local numIDs
+  let numIDs=$numCols-2                    # can show 2 user IDs fewer than there are columns
+  local color="green"
+  echo "<td><a style=\"color:$color;\" href=onelpar?$systemID>$systemID</a></td>" # column 1 - the LPAR
+  local nextUserID
+  local userIDnum=1
+  for nextUserID in $userIDs; do           # loop through max number of user IDs
+    if [ "$role" = netadmin ]; then        # user is a network admin
+      echo $netadminIDs | grep $nextUserID >/dev/null
+      if [ $? != 0 ]; then                 # not a user ID network admins can see
+        continue                           # iterate loop
+      fi    
+    fi
+    if [ $userIDnum = $numIDs ]; then      # row is full 
+      break                                # out of for loop
+    fi
+    let userIDnum=$userIDnum+1             # increment counter
+    echo "<td bgcolor=\"black\"><a style=\"color:#40ff00; text-decoration:none;\" href=onecons?$nextUserID&amp;$systemID>$nextUserID</a></td>"
+  done
+
+  # draw empty cells, if any
+  if [ $userIDnum -lt $numIDs ]; then    # there will be some empty cells 
+    local numEmptyCells
+    let numEmptyCells=$numIDs-$userIDnum # get number that will be empty 
+    for i in `seq 1 $numEmptyCells`; do
+      echo "<td>&nbsp;</td>"               # empty cell 
+    done
+  fi
+
+  # draw a 'More' link if some aren't shown
+  if [ $userIDnum = $numIDs ]; then # there are too many guests for one row 
+    echo "<td><a style=\"color:$color;\" href=onelpar?$systemID>More</a></td>"
+  else
+    echo "<td>&nbsp;</td>"                 # empty cell 
+  fi
+  echo "</tr>"                             # end row
+ }                                         # drawOneRow{}
+
+#+--------------------------------------------------------------------------+
+function drawMainTable
+# Produce a report from the most recent health check
+# Args: none 
+#+--------------------------------------------------------------------------+
+ {
+  startPage $title                         # start the Web page
+  cat consolez.css                         # inline consolez cascading style sheets
+
+  # get all saved console data.  It is of the form:
+  #   ZSS:ZS01 ENGZS01 ENGZS012 MMACISA
+  #   ZSS:ZS02 ENGZS022 HTTPD MMACISA
+  #   where the first token is the environment:system ID and remaining are uesr IDs
+  local consoleData
+  consoleData=`/usr/local/sbin/lscons -w $USER` # list all saved consoles from the Web UI
+  rc=$?
+  if [ "$rc" != 0 ]; then                  # not expected
+    startTable
+    startRow "#FF6666"                     # draw row in light red
+    echo "<td><h2>Unexpected!</h2><p>/usr/local/sbin/lscons returned $rc</p>"
+    echo "<p>$consoleData</p>"             # error message is the data
+    echo "</td></tr></table>"              # end cell, row and table
+    exit 3                                 # internal server error
+  fi  
+
+  # draw the table
+  echo "<h2>$title</h2>"
+  echo '<table class="consolezTable" align="center">' # start consolez table aligned in center 
+  local nextRow                            # next row from test 
+  exec 3<&0                                # Link file descriptor #3 with stdin
+  while read -u 3 nextRow; do              # read from file descriptor 3
+    drawOneRow $nextRow
+    let linesInHeader=$linesInHeader+1     # increment counter
+  done 3< <(echo "$consoleData")           # all rows from last test are input
+  echo "</tr></table>"                     # end row and table
+ }                                         # drawMainTable()
+
+#+--------------------------------------------------------------------------+
+# global variables
+consolezUser="none"                        # user this script is running as
+curEnv="none"                              # the current environment being processed
+env=""                                     # environment passed in
+flags="-s"                                 # default is succinct output
+linesInHeader=0                            # lines drawn since header row displayed
+role="none"
+title="z/VM Console data"                  # page title
+tgtEnvs=""                                 # target environments
+
+# main()
+source /usr/local/sbin/consfuncs           # import common line command functions
+source consuifuncs                         # import common Web UI functions
+setRole                                    # set user's role based on login credentials
+drawMainTable $rc                          # show table with all LPARs and tests 
+drawButtons                                # add buttons at bottom
+

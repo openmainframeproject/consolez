@@ -1,0 +1,198 @@
+#!/bin/bash
+#
+# This code is shipped under the Artistic License 2.0. See the file
+# Artistic-License-2.0.txt or http://opensource.org/licenses/Artistic-2.0
+#
+#+--------------------------------------------------------------------------+
+#
+# consuifuncs - functions common to consolez Web UI interface  
+#
+#---------------------------------------------------------------------------
+function startPage
+# Common Web page header
+# Args: page title
+#---------------------------------------------------------------------------
+ {
+  local title="$@"
+
+  echo "Content-type: text/html"
+  echo ""
+  echo '<!DOCTYPE html><head><meta https-equiv="Content-Type" content="text/html; charset=iso-8859-1" />'
+  echo "<link rel=\"icon\" href=\"/$webIcon\" type=\"image/x-icon\"/>"
+  echo "<title>$title</title>"
+  local wallpaper=""                       # assume no wallpaper
+  if [ ${#webWallpaper} != 0 -a "$webWallpaper" != "none" ]; then # wallpaper is specified
+    wallpaper="background=\"/$webWallpaper\""
+  fi
+  echo "<body style=\"font-family:$webFont\" $wallpaper>"
+ }                                         # startPage()
+
+#+--------------------------------------------------------------------------+
+function startTable
+# Start an HTML table using the consolezTable CSS
+# Args: $1 id of the table
+#       $2 table class "basic" "consolezTable" "invisible"
+# Global variables:
+#+--------------------------------------------------------------------------+
+ {
+  local tableid="consolezTable"
+  if [ ${#1} != 0 ]; then
+    tableid=$1
+  fi
+  local tableclass="consolezTable"
+  if [ ${#2} -gt 0 ]; then                 # if there is a second argument then its a table class
+    if [ "$2" = "basic" ]; then
+      tableclass="basicTable"
+    elif [ "$2" = "invisible" ]; then
+      tableclass="invisibleTable"
+    else
+      tableclass="consolezTable"
+    fi
+  fi
+  echo "<table id=\"$tableid\" class=\"$tableclass\">"
+ }                                         # startTable()
+
+#---------------------------------------------------------------------------
+function startRow
+# Arg 1: color for the row (optional)
+#---------------------------------------------------------------------------
+ {
+  local color=$1
+  local args=""
+
+  if [ ${#color} -gt 0 ]; then             # a color was passed in
+    args=" style=\"background-color:$color;\""
+  fi
+  echo "<tr$args>"
+ }                                         # startRow()
+
+#+--------------------------------------------------------------------------+
+function drawButtons
+# Draw buttons to
+#   (1) Spool the current user ID's console (for onecons)
+#   (2) Return to main window
+# Args: None
+#+--------------------------------------------------------------------------+
+ {
+  local greenStyle="style=\"background-color:#8CFF66\""
+  local yellowStyle="style=\"background-color:#FFDB4D\""
+
+  # start the table
+  echo "<br><table align=center><tr><td>"  # leave room, start table, row and cell
+  if [ "$cmdCalled" = onecons ]; then      # add a 'Refresh console' button 
+    local spoolCmd="$SCRIPT_NAME?$userID&amp;$systemID&amp;spool"
+    echo "<form method=POST action=\"${spoolCmd}\" accept-charset=utf-8>"
+    echo "<input class=button $greenStyle type=submit value=\"Refresh console\">&nbsp;"
+    echo "</form></td>"                    # end form and cell
+  fi
+ 
+  # add a 'CP commands' button
+  if [ "$cmdCalled" != consolez ]; then    # add the button
+    echo "<td><form action=\"/ldap/cpcmds?systemID=$systemID\" accept-charset=utf-8>"
+    echo "<button class=button $greenStyle>CP commands</button>"
+    echo "<input type=hidden name=systemID value=\"$systemID\">"
+    echo "</form></td>"                      # end form and cell
+  fi
+
+  # add a 'Search' button
+  if [ "$cmdCalled" != searchcons ]; then  # add the button
+    echo "<td><form action=\"/ldap/searchcons\" accept-charset=utf-8>"
+    echo "<button class=button $greenStyle>Search</button>"
+    echo "</form></td>"                      # end form and cell
+  fi
+
+  # add a 'Home' to main window button
+  if [ "$cmdCalled" != consolez ]; then    # add the button
+    echo "<td><form action='/ldap/consolez' accept-charset=utf-8>"
+    echo "<button class=button $yellowStyle>Home</button>"
+    echo "</form></td>"                    # end form, cell
+  fi
+  echo "</tr></table>"                     # row, table
+ }
+
+#---------------------------------------------------------------------------
+function startCell
+# Start a table cell
+# Arg 1: optional color
+#---------------------------------------------------------------------------
+ {
+  local color=""
+  if [ $# = 1 ]; then                      # a color was passed in
+    color=" style=\"background-color:$1;\""
+  fi
+  echo "<td$color>"
+ }                                         # startCell()
+
+#+--------------------------------------------------------------------------+
+function uudecode
+# Decode special characters - from stackoverflow:
+# Using the : builtin, special parameters, pattern substitution and the echo
+# builtin's -e option to translate hex codes into characters.
+# Arg 1: the string to decode
+#+--------------------------------------------------------------------------+
+ {
+  : SOURCE: ${BASH_SOURCE}
+  : STACK:  ${FUNCNAME[@]}
+
+  : "${*//+/ }"; echo -e "${_//%/\\x}";    # have no idea how this works
+ }                                         # zUUdecode()
+
+#---------------------------------------------------------------------------
+function setRole
+# get the uid and gid of the logged in user and determine their role 
+# Args: none
+#---------------------------------------------------------------------------
+ {
+  # REMOTE_USER should always be set to who is logged in
+  if [ ${#REMOTE_USER} = 0 ]; then         # not expected
+    startPage ERROR
+    startTable
+    startRow "#FF6666"                     # draw row in light red
+    echo "<td><h2>Unexpected!</h2><p>global REMOTE_USER is not set</p>"
+    echo "</td></tr></table>"              # end cell, row and table
+    exit 3                                 # internal server error
+  fi
+  if [ "$adminGID" = 0 ]; then               # all users are full admins
+    role="admin"
+    return                                 # all done
+  fi
+
+  # determine user's role based on their GID
+  local idOut=`id $REMOTE_USER`
+  local gid=`echo $idOut | awk -F'gid=' '{print $2}' | awk -F'(' '{print $1}'`
+  if [ "$gid" = "$netadminGID" ]; then       # in netadmins group
+    role="netadmin"
+  elif [ "$gid" = "$adminGID" ]; then        # in admins group
+    role="netadmin"
+    role="admin"
+  else                                     # not authorized
+    startPage ERROR
+    startTable
+    startRow "#FF6666"                     # draw row in light red
+    echo "<td><h2>Sorry!</h2><p>You are not authorized to use $cmdCalled</p>"
+    echo "</td></tr></table>"              # end cell, row and table
+    exit 2                                 # not authorized 
+  fi
+
+  # get the user Apache is running as
+  USER=`ps -ef|egrep '(httpd|apache2|apache)'|grep -v root|head -n1|awk '{print $1}'`
+ }                                         # setRole()
+
+#---------------------------------------------------------------------------
+# global variables
+cmdCalled=`basename $0`                    # get the name of the script called
+color1="#DAEAFF"               # first background color (brighter: #D6D6FF)
+color2="#FFE3E5"               # second background color (brighter: #C9FFED)
+color3="#FDDCB4"               # background color for headings (brighter: #FFBD5C)
+color4="#EEFFFF"               # fourth background color (brighter: #FFFFA3)
+color5="#EEFFEE"               # fifth background color (brighter: #FFD1FF)
+color6="#80FF80"               # background color for "Do it" button (brighter: #00FF00)
+
+adminGID=1041                              # GID of full administrators (0 = all users are admins)
+netadminGID=1042                           # GID of network administrators
+# user IDs network admins can see:
+netadminIDs="DTCVSW1 DTCVSW2 DTCVSW3 DTCVSW4 FTPSERVE SSL00001 SSL00002 SSL00003 SSL00004 SSL00005 TCPIP TCPMAINT" 
+numCols=15                                 # number of columns in main tables
+role="none"                                # user's role - 'admin' or 'netadmin'
+webIcon="consolez.ico"                     # browser tab icon
+

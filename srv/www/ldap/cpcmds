@@ -1,0 +1,143 @@
+#!/bin/bash
+#
+# This code is shipped under the Artistic License 2.0. See the file
+# Artistic-License-2.0.txt or http://opensource.org/licenses/Artistic-2.0
+#
+#+--------------------------------------------------------------------------+
+#
+# cpcmds - For admins run any CP command specified.  
+#         For netadmins allow the following commands to be run:
+#         Command                Keyword
+#         Q VSWITCH              QVSW
+#         Q VSWITCH DETAILS      QVSWDET
+#         Q CONTROLLER           QCONT
+#         Q IUCV                 QIUCV
+#         Q VMLAN                QVMLAN
+#         Q PORT GROUP           QPORTG
+#
+#+--------------------------------------------------------------------------+
+function drawMainTable
+# Draw a table with all guests that have saved console data - $numCols per row 
+# Args: none 
+#+--------------------------------------------------------------------------+
+ {
+  startPage $title                         # start the Web page
+  cat consolez.css                         # inline cascading style sheets
+
+  local CPcmd                              # the CP command to run 
+  local cmd                                # a command
+  local rc                                 # a return code
+
+  echo "<h2>$title</h2>"
+  if [ "$role" = admin ]; then             # user is a full admin 
+    if [ ${#adminCmd} = 0 ]; then          # no command has yet been specified
+      return                               # all done
+    fi
+    CPcmd=`uudecode $adminCmd`             # UU-decode the command
+  elif [ "$role" = netadmin ]; then        # user is a network administrator
+    if [ ${#netadminCmd} = 0 ]; then       # no command has yet been specified
+      return                               # all done
+    fi
+    case $netadminCmd in
+      QVSW)
+        CPcmd="QUERY VSWITCH"
+        ;;      
+      QVSWDET)
+        CPcmd="QUERY VSWITCH DETAILS"
+        ;;      
+      QCONT)
+        CPcmd="QUERY CONTROLLER"
+        ;;      
+      QIUCV)
+        CPcmd="QUERY IUCV"
+        ;;      
+      QVMLAN)
+        CPcmd="QUERY VMLAN"
+        ;;      
+      QPORTG)
+        CPcmd="QUERY PORT GROUP"
+        ;;      
+      *)
+        echo "Internal server error: Unexpected netadminCmd: $netadminCmd"
+        return
+        ;;
+    esac
+  fi 
+  echo '<table class="greenScreenTable">'  # start a 'green screen' table 
+  echo "<tr><td><pre>"                     # start row, cell, preformatted text
+  cmd="/usr/local/sbin/cpcommand -w $USER $systemID $CPcmd" # command to send
+  echo "calling: $cmd"
+  $cmd                                     # run the command
+  echo "</td></tr></table>"                # end cell, row, table
+ }                                         # drawMainTable()
+
+#+--------------------------------------------------------------------------+
+function drawCPcmdButtons
+# Draw navigation buttons specifically for this page
+# Args: none
+#+--------------------------------------------------------------------------+
+ {
+  local greenStyle="style=\"background-color:#8CFF66\""
+  local yellowStyle="style=\"background-color:#FFDB4D\""
+
+  # For netadmins add a set of buttons
+  if [ "$role" = netadmin ]; then 
+    echo "<br><table align=center><tr>"  # leave room, start table and row
+    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QCONT' accept-charset=utf-8>"
+    echo "<input class=button $greenStyle type=submit value=\"Q CONTROLLER\">&nbsp;"
+    echo "</form></td>"                    # end form and cell
+    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QIUCV' accept-charset=utf-8>"
+    echo "<input class=button $greenStyle type=submit value=\"Q IUCV\">&nbsp;"
+    echo "</form></td>"                    # end form and cell
+    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QPORTG' accept-charset=utf-8>"
+    echo "<input class=button $greenStyle type=submit value=\"Q PORT GROUP\">&nbsp;"
+    echo "</form></td>"                    # end form and cell
+
+    echo "</tr><tr>"                       # start a new row 
+    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QVMLAN' accept-charset=utf-8>"
+    echo "<input class=button $greenStyle type=submit value=\"Q VMLAN\">&nbsp;"
+    echo "</form></td>"                    # end form and cell
+    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QVSW' accept-charset=utf-8>"
+    echo "<input class=button $greenStyle type=submit value=\"Q VSWITCH\">&nbsp;"
+    echo "</form></td>"                    # end form and cell
+    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QVSWDET' accept-charset=utf-8>"
+    echo "<input class=button $greenStyle type=submit value=\"Q VSWITCH DET\">&nbsp;"
+    echo "</form></td>"                    # end form and cell
+    echo "</tr></table>"                   # end row, table 
+  elif [ "$role" = admin ]; then
+    echo "<table align=center><tr><td>"    # leave room, start table, row and cell
+    echo "<p><b>CP command to issue:</b></p>"
+    echo "<form action=\"/ldap/cpcmds\" method=\"GET\">"
+    echo "<input type=hidden name=systemID value=\"$systemID\">"
+    echo "<input type=text style=\"width: 300px;\" id=adminCmd name=adminCmd>"
+    echo "</form></td></tr></table>"       # end form, cell, row, table
+  fi
+  echo "<br>"                              # leave some room
+
+  # add a 'Search' button
+  echo "<table align=center><tr><td>"      # start table, row and cell
+  echo "<td><form action=\"/ldap/searchcons\" accept-charset=utf-8>"
+  echo "<button class=button $greenStyle>Search</button>"
+  echo "</form></td>"                      # end form and cell
+
+  # add a 'Home' to main window button
+  echo "<td><form action='/ldap/consolez' accept-charset=utf-8>"
+  echo "<button class=button $yellowStyle>Home</button></a>"
+  echo "</form></td></tr></table>"         # end cell, row and table
+  echo "</td></tr></table>"                # end cell, row and table
+ }                                         # drawCPcmdButtons()
+
+#+--------------------------------------------------------------------------+
+# global variables
+adminCmd=`echo "$QUERY_STRING" | sed -n 's/^.*adminCmd=\([^&]*\).*$/\1/p'`
+netadminCmd=`echo "$QUERY_STRING" | sed -n 's/^.*netadminCmd=\([^&]*\).*$/\1/p'`
+systemID=`echo "$QUERY_STRING" | sed -n 's/^.*systemID=\([^&]*\).*$/\1/p'`
+title="Run CP commands on $systemID"       # page title
+
+# main()
+source /usr/local/sbin/consfuncs           # import common line command functions
+source consuifuncs                         # import common Web UI functions
+setRole                                    # set user's role based on login credentials
+drawMainTable                              # show table with all user IDs that have data 
+drawCPcmdButtons                           # add custom navigation buttons
+

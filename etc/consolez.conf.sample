@@ -1,0 +1,20 @@
+#
+# Configuration file for consolez - /etc/consolez.conf
+#
+# Variable 'consolesUser' must be set to a user that can SSH without passwords
+# Variable 'consolezDir' can be set but if not will default to /srv/consolez
+#
+consolezDir = "/data/consolez"             # directory where console data is stored
+consolezUser="zadmin"                      # user with passwordless SSH consolez will run as
+# 
+# Remaining values define your organizations environments, Linux 'engineering servers' and z/VM systems 
+#
+# For example, to define two environments each with two z/VM LPARs:
+# environment ENV1
+# hostname1 zvm1
+# hostname2 zvm2
+#
+# environment ENV2
+# hostname3 zvm3
+# hostname4 zvm4
+#
