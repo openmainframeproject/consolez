@@ -27,13 +27,13 @@ You will need:
 - A directory with a lot of free space
 - A Linux user that has SSH key-based (passwordless) authentication set up
 - A Linux server with elevated privileges, Apache running and sudo entries to enable these commands:
- - /bin/rm
- - /bin/touch
- - /sbin/chccwdev
- - /sbin/vmcp
- - /usr/bin/chmod
- - /usr/bin/chown
- - /usr/sbin/vmur
+  - /bin/rm
+  - /bin/touch
+  - /sbin/chccwdev
+  - /sbin/vmcp
+  - /usr/bin/chmod
+  - /usr/bin/chown
+  - /usr/sbin/vmur
 
 Then copy the file /etc/consolez.conf.sample to /etc/consolez.conf and configure it:
 Here is what's currently in the sample config file:
