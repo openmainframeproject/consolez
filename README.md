@@ -7,6 +7,7 @@ The line commands *must* go in /usr/local/sbin/. The Web CGIs default to /srv/ww
 don't have to go there. Here is a sample Apache configuration (on RHEL 8) setting up LDAP 
 authentication for that directory: 
 
+'''
 # cat /etc/httpd/conf/httpd.conf
 ...
 # ldap/ directory is for LDAP-protected scripts
@@ -21,6 +22,7 @@ ScriptAlias /ldap/ /srv/www/ldap/
     Require ldap-filter objectClass=posixAccount
 </Directory>
 ...
+'''
 If you don't have LDAP authentication, you can set up password files. You could also just copy the 
 scripts to cgi-bin/ and leave them wide open.  (Not recommended, but your choice :))
 
