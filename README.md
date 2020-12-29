@@ -62,7 +62,5 @@ consolezUser="zadmin"                      # user with passwordless SSH consolez
 The first release was on December 25th, 2020. 
 Let's call it version 0.90 so there will be ten tries to get it to version 1.0  :))
 
-These are the files in the tar file on: https://sites.google.com/site/mike99mac/consolez-0.90.tgz
-
-If you have questions, comments or bug reports, you can email me at mike99mac@gmail.com  -Mike MacIsaac
+If you have questions, comments or bug reports, you can email me at mike99mac at gmail.com  -Mike MacIsaac
 
