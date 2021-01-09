@@ -61,6 +61,7 @@ consolezUser="zadmin"                      # user with passwordless SSH consolez
 ```
 The first release was on December 25th, 2020. 
 Let's call it version 0.90 so there will be ten tries to get it to version 1.0  :))
+There were five local builds and I uploaded v0.95 to github on Jan 9th, 2021.
 
 If you have questions, comments or bug reports, you can email me at mike99mac at gmail.com  -Mike MacIsaac
 
