@@ -454,6 +454,9 @@ function spoolConsole
   if [ ${#fromServer} != 0 ]; then         # being called from main engineering server
     engServer="$thisServer"                # console is local
   else 
+    if [ "$verbose" -ge 1 ]; then          # not in silent mode
+      echo "Spooling console of $userID at $systemID ..."
+    fi
     verboseMsg "trying to get engineering server with: getEngServer $systemID"
     local engData=`getEngServer $systemID` # search input file for engineering server
     verboseMsg "engData = $engData"
@@ -476,9 +479,9 @@ function spoolConsole
     verboseMsg "getting console on remote server $engServer"
     getRemoteConsole                       # get the console data from remote eng'g server
   else                                     # target LPAR is local (this LPAR)
-    makeTempConsFile                       # make the temporary file for this set of console data 
     verboseMsg "on server $thisServer"
     checkUserID                            # first be sure user ID exists and is logged on
+    makeTempConsFile                       # make the temporary file for this set of console data 
     getLocalConsole                        # get the console data from this eng'g server
   fi
   if [ ${#fromServer} = 0 ]; then          # on calling server
