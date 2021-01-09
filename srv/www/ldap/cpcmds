@@ -113,18 +113,6 @@ function drawCPcmdButtons
     echo "</form></td></tr></table>"       # end form, cell, row, table
   fi
   echo "<br>"                              # leave some room
-
-  # add a 'Search' button
-  echo "<table align=center><tr><td>"      # start table, row and cell
-  echo "<td><form action=\"/ldap/searchcons\" accept-charset=utf-8>"
-  echo "<button class=button $greenStyle>Search</button>"
-  echo "</form></td>"                      # end form and cell
-
-  # add a 'Home' to main window button
-  echo "<td><form action='/ldap/consolez' accept-charset=utf-8>"
-  echo "<button class=button $yellowStyle>Home</button></a>"
-  echo "</form></td></tr></table>"         # end cell, row and table
-  echo "</td></tr></table>"                # end cell, row and table
  }                                         # drawCPcmdButtons()
 
 #+--------------------------------------------------------------------------+
@@ -137,7 +125,10 @@ title="Run CP commands on $systemID"       # page title
 # main()
 source /usr/local/sbin/consfuncs           # import common line command functions
 source consuifuncs                         # import common Web UI functions
+setWebUIvars                               # override defaults with user's preferences
 setRole                                    # set user's role based on login credentials
 drawMainTable                              # show table with all user IDs that have data 
 drawCPcmdButtons                           # add custom navigation buttons
+drawButtons                                # add navigation buttons
+
 

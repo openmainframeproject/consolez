@@ -79,34 +79,42 @@ function drawButtons
 
   # start the table
   echo "<br><table align=center><tr><td>"  # leave room, start table, row and cell
-  if [ "$cmdCalled" = onecons ]; then      # add a 'Refresh console' button 
+
+  # add a 'Home' to all pages except consolez 
+  if [ "$cmdCalled" != consolez ]; then    # add the button
+    echo "<td><form action='/ldap/consolez' accept-charset=utf-8>"
+    echo "<button class=button $yellowStyle>Home</button>"
+    echo "</form></td>"                    # end form, cell
+  fi
+
+  # add a 'Refresh console' button to onecons only
+  if [ "$cmdCalled" = onecons ]; then      
     local spoolCmd="$SCRIPT_NAME?$userID&amp;$systemID&amp;spool"
-    echo "<form method=POST action=\"${spoolCmd}\" accept-charset=utf-8>"
+    echo "<td><form method=POST action=\"${spoolCmd}\" accept-charset=utf-8>"
     echo "<input class=button $greenStyle type=submit value=\"Refresh console\">&nbsp;"
     echo "</form></td>"                    # end form and cell
   fi
  
-  # add a 'CP commands' button
+  # add a 'CP commands' button to all pages but consolez
   if [ "$cmdCalled" != consolez ]; then    # add the button
     echo "<td><form action=\"/ldap/cpcmds?systemID=$systemID\" accept-charset=utf-8>"
     echo "<button class=button $greenStyle>CP commands</button>"
     echo "<input type=hidden name=systemID value=\"$systemID\">"
-    echo "</form></td>"                      # end form and cell
+    echo "</form></td>"                    # end form and cell
   fi
 
   # add a 'Search' button
   if [ "$cmdCalled" != searchcons ]; then  # add the button
     echo "<td><form action=\"/ldap/searchcons\" accept-charset=utf-8>"
     echo "<button class=button $greenStyle>Search</button>"
-    echo "</form></td>"                      # end form and cell
+    echo "</form></td>"                    # end form and cell
   fi
 
-  # add a 'Home' to main window button
-  if [ "$cmdCalled" != consolez ]; then    # add the button
-    echo "<td><form action='/ldap/consolez' accept-charset=utf-8>"
-    echo "<button class=button $yellowStyle>Home</button>"
-    echo "</form></td>"                    # end form, cell
-  fi
+  # all pages get a 'Help' button
+  echo "<td><form action='/consolez.pdf' accept-charset=utf-8>"
+  echo "<button class=button $yellowStyle>Help</button>"
+  echo "</form></td>"                      # end form, cell
+
   echo "</tr></table>"                     # row, table
  }
 
@@ -131,11 +139,20 @@ function uudecode
 # Arg 1: the string to decode
 #+--------------------------------------------------------------------------+
  {
-  : SOURCE: ${BASH_SOURCE}
-  : STACK:  ${FUNCNAME[@]}
-
   : "${*//+/ }"; echo -e "${_//%/\\x}";    # have no idea how this works
  }                                         # zUUdecode()
+
+#+--------------------------------------------------------------------------+
+function setWebUIvars
+# If the file /etc/consolez-webui.conf exists, these values override defaults 
+# Args: none
+#+--------------------------------------------------------------------------+
+ {
+  local uiConfFile="/etc/consolez-webui.conf"
+  if [ -f $uiConfFile ]; then              # file exists
+    source $uiConfFile                     # override defaults
+  fi
+ }                                         # setWebUIvars()
 
 #---------------------------------------------------------------------------
 function setRole
@@ -160,10 +177,11 @@ function setRole
   # determine user's role based on their GID
   local idOut=`id $REMOTE_USER`
   local gid=`echo $idOut | awk -F'gid=' '{print $2}' | awk -F'(' '{print $1}'`
-  if [ "$gid" = "$netadminGID" ]; then       # in netadmins group
+  if [ "$adminGID" = 0 ]; then             # all users are admins
+    role="admin"
+  elif [ "$gid" = "$netadminGID" ]; then   # in netadmins group
     role="netadmin"
-  elif [ "$gid" = "$adminGID" ]; then        # in admins group
-    role="netadmin"
+  elif [ "$gid" = "$adminGID" ]; then      # in admins group
     role="admin"
   else                                     # not authorized
     startPage ERROR
@@ -181,18 +199,15 @@ function setRole
 #---------------------------------------------------------------------------
 # global variables
 cmdCalled=`basename $0`                    # get the name of the script called
-color1="#DAEAFF"               # first background color (brighter: #D6D6FF)
-color2="#FFE3E5"               # second background color (brighter: #C9FFED)
-color3="#FDDCB4"               # background color for headings (brighter: #FFBD5C)
-color4="#EEFFFF"               # fourth background color (brighter: #FFFFA3)
-color5="#EEFFEE"               # fifth background color (brighter: #FFD1FF)
-color6="#80FF80"               # background color for "Do it" button (brighter: #00FF00)
+color1="#DAEAFF"                           # first background color 
+headerColor="#fff2e6"                      # color of env divider rows - a muted orange
+role="none"                                # user's role - 'admin' or 'netadmin'
 
-adminGID=1041                              # GID of full administrators (0 = all users are admins)
-netadminGID=1042                           # GID of network administrators
+# any of the following values can be overridden by creating the file /etc/consolez-webui.conf
+adminGID=0                                 # GID of full administrators (0 = all users are admins)
+netadminGID=0                              # GID of network administrators
 # user IDs network admins can see:
 netadminIDs="DTCVSW1 DTCVSW2 DTCVSW3 DTCVSW4 FTPSERVE SSL00001 SSL00002 SSL00003 SSL00004 SSL00005 TCPIP TCPMAINT" 
-numCols=15                                 # number of columns in main tables
-role="none"                                # user's role - 'admin' or 'netadmin'
-webIcon="consolez.ico"                     # browser tab icon
+numCols=14                                 # number of columns in main tables
+webIcon="consolez.ico"                     # browser tab icon in /srv/www/htdocs
 

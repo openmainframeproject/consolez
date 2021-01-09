@@ -7,7 +7,7 @@
 #+--------------------------------------------------------------------------+
 #
 # onecons - show console data for one user ID 
-# Sample URL:  cdlengzs0102.es.ad.adp.com/ldap/onecons?TCPIP&ZS01
+# Sample URL:  cdlengzs0102.example.com/ldap/onecons?TCPIP&ZS01
 #
 #+--------------------------------------------------------------------------+
 function drawPage
@@ -48,6 +48,7 @@ title="Console of $userID at $systemID"    # page title
 
 # main()
 source consuifuncs                         # import common Web UI functions
+setWebUIvars                               # override defaults with user's preferences
 startPage                                  # start the Web page
 cat consolez.css                           # inline consolez cascading style sheets
 setRole                                    # set user's role based on login credentials

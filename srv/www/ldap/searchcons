@@ -132,6 +132,7 @@ title="Search z/VM consoles"               # page title
 # main()
 source /usr/local/sbin/consfuncs           # import common line command functions
 source consuifuncs                         # import common Web UI functions
+setWebUIvars                               # override defaults with user's preferences
 setRole                                    # set user's role based on login credentials
 drawMainTable                              # show table with all user IDs that have data 
 drawButtons                                # add custom navigation buttons

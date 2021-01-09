@@ -52,7 +52,7 @@ function drawRows
   done
 
   # draw empty cells, if any
-  if [ $colNum -lt $numCols ]; then        # there will be some empty cells
+  if [ $colNum -le $numCols ]; then        # there will be some empty cells
     local numEmptyCells
     let numEmptyCells=$numCols-$colNum+1   # number empty cells to draw
     for i in `seq 1 $numEmptyCells`; do
@@ -153,8 +153,8 @@ vmcpCmd="sudo /sbin/vmcp"                  # how to issue vmcp commands
 
 # main()
 source /usr/local/sbin/consfuncs           # import common line command functions
-#source /srv/www/ldap/consuifuncs           # import common Web UI functions
 source consuifuncs                         # import common Web UI functions
+setWebUIvars                               # override Web UI defaults with user's preferences
 readConfFile                               # read the /etc/consolez.conf file
 setRole                                    # set user's role based on login credentials
 drawMainTable                              # show table with all user IDs that have data 
