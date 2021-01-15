@@ -1,0 +1,1 @@
+The only third party components are a mainframe, z/VM and a zLinux with standard packages such as Apache and SSH.
