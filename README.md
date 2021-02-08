@@ -1,5 +1,5 @@
 
-This is the consolez package for z/VM and zLinux.  
+This is the consolez package for z/VM and zLinux (pronounced console-zee).
 
 It is a Web-UI to give team members access to just the z/VM consoles and commands they need.
 
