@@ -1,0 +1,129 @@
+#!/bin/bash
+#
+# This code is shipped under the Artistic License 2.0. See the file
+# Artistic-License-2.0.txt or http://opensource.org/licenses/Artistic-2.0
+#
+#+--------------------------------------------------------------------------+
+#
+# searchforcons - Search for consoles by user ID or host name, regardles of
+#                 whether or not they have been saved on Linux.  To get here, to this 
+#                 page, there must exist a tool that does the searching specified
+#                 by the 'searchTool' global variable set in /etc/consolez-webui.conf
+#
+#---------------------------------------------------------------------------
+function headerRow
+# create a table header row that spans columns and writes a title in large font
+# Arg 1:    number of columns to span
+# Args 2-n: title
+#---------------------------------------------------------------------------
+ {
+  local cols=$1                            # arg 1
+  shift                                    # get to remaining args
+  local text=$@                            # set the title
+
+  if [ "$cols" = 1 ]; then                 # no need for colspan
+    echo "<tr><th style=\"background-color:$color3;\"><font size=\"+1\">"
+  else
+    echo "<tr><th style=\"background-color:$color3;\" colspan=\"$cols\"><font size=\"+1\">"
+  fi
+  echo "$text</font></th></tr>"            # add text, end font, header and row
+ }                                         # headerRow()
+
+#+--------------------------------------------------------------------------+
+function drawClearButton
+# Draw a button to clear all search filters 
+# Args: none
+#+--------------------------------------------------------------------------+
+ {
+  echo "<tr>" 
+  echo "<td style=\"text-align:center\"; colspan=\"3\">"
+  echo '<form method=GET action="/ldap/searchcons" accept-charset=utf-8>'
+  echo "<input class=button type=submit style=\"background-color:$color1\"; value=\"Clear filters\">&nbsp;"
+  if [ ${#userIDflt} != 0 ]; then
+    echo "<input type=hidden name=hostFlt value=\"\">"
+  fi
+  if [ ${#systemIDflt} != 0 ]; then
+    echo "<input type=hidden name=systemIDflt value=\"\">"
+  fi
+  if [ ${#}attern} != 0 ]; then
+    echo "<input type=hidden name=pattern value=\"\">"
+  fi
+  echo "</form></td></tr>"  
+ }                                         # drawClearButton()
+
+#+--------------------------------------------------------------------------+
+function drawMainTable
+# Draw a table with search criteria for user ID, system ID/environment 
+#   the text patter to search form and a 'Search consoles' button
+# Args: none 
+#+--------------------------------------------------------------------------+
+ {
+  if [ ${#searchString} != 0 ]; then       # a search string passed in
+    title="$title with pattern '$searchString'"      # append pattern searched on
+  fi
+  startPage $title                         # start the Web page
+  cat consolez.css                         # inline cascading style sheets
+
+  # End User: modify as needed to perform your search
+  #echo "<h2>$title</h2>"
+  drawSearchBar
+  if [ ${#searchString} = 0 ]; then        # no search string passed in
+    return                                 # all done
+  fi
+  # verboseMsg "command = curl -k -s http://engweb01.mf.adp.com/finder.php?id=$searchString<br>"
+  searchOut=`curl -k -s http://engweb01.mf.adp.com/finder.php?id=$searchString`
+  local numHits=`echo "$searchOut" | wc -l`
+  let numHits=$numHits-3                   # ignore 3 lines of html
+
+  # finder records are of the form:
+  # cdlengzs0101 51.19.230.246 ENGZS01 ZS01 none none 1 1 2G 8G 00866000 Rhel83 ... 
+  if [ "$numHits" = 0 ]; then              # no servers found
+    echo "<h4 align=center>Sorry, no servers found matching: $searchString</h4>"
+    return                                 # all done
+  elif [ "$numHits" -gt 1 ]; then          # multiple servers found
+    echo "<h4 align=\"center\">Found $numHits matching servers</h4>"
+    echo '<table class="consolezTable">'   # start table 
+    echo "<tr><th>Host name</th>"          # start header row
+    echo "<th>User ID</th>"       
+    echo "<th>LPAR</th></tr>"              # end row
+  fi
+  local hostName
+  local nextLine
+  local systemID                           # aka LPAR
+  local userID                             # aka vmname
+  exec 3<&0                                # Link file descriptor #3 with stdin.
+  while read -u 3 nextLine; do             # read from file descriptor 3
+    if [ ${nextLine:0:1} = '<' ]; then     # line is HTML
+      continue                             # iterate loop
+    fi 
+    hostName=`echo $nextLine | awk '{print $1}'`
+    userID=`echo $nextLine | awk '{print $3}'`
+    systemID=`echo $nextLine | awk '{print $4}'`
+    if [ "$numHits" = 1 ]; then            # open onecons
+      # echo "calling showOneConsole $userID $systemID spool<br>"
+      showOneConsole $userID $systemID spool
+    else                                   # open 
+      echo "<tr><td>$hostName</td>"        # start header row
+      echo "<td><a href=onecons?$userID&amp;$systemID&amp;spool>$userID</a></td>"
+      echo "<td>$systemID</td></tr>"       # end row
+    fi
+  done 3< <(echo "$searchOut")
+  if [ "$numHits" -gt 1 ]; then            # multiple servers found
+    echo "</table><br>"                    # end table, leave some room
+  fi
+ }                                         # drawMainTable()
+
+#+--------------------------------------------------------------------------+
+# global variables
+searchString=`echo "$QUERY_STRING" | sed -n 's/^.*searchString=\([^&]*\).*$/\1/p'`
+searchOut=""                               # output of finder RESTful API
+title="Search for z/VM console"            # page title
+
+# main()
+source /usr/local/sbin/consfuncs           # import common line command functions
+source consuifuncs                         # import common Web UI functions
+setWebUIvars                               # override defaults with user's preferences
+setRole                                    # set user's role based on login credentials
+drawMainTable                              # show table with all user IDs that have data 
+drawButtons                                # add custom navigation buttons
+
