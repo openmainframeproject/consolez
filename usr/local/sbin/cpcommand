@@ -35,7 +35,7 @@ function usage
 #+--------------------------------------------------------------------------+
 function parseArgs
 # Parse arguments 
-# Arg 1: all arguments passed into scriopt 
+# Arg 1: all arguments passed into script 
 #+--------------------------------------------------------------------------+
  {
   : SOURCE: ${BASH_SOURCE}

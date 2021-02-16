@@ -10,36 +10,6 @@
 # Sample URL:  cdlengzs0102.example.com/ldap/onecons?TCPIP&ZS01
 #
 #+--------------------------------------------------------------------------+
-function drawPage
-# Draw a page showing one saved console file 
-# Args: none 
-#+--------------------------------------------------------------------------+
- {
-  local cmd                                # a command
- 
-  # check if user requested console to be spooled
-  if [ "$option" = spool ]; then           # user asked to have console spooled
-    cmd="/usr/local/sbin/spoolcons -w $USER $userID $systemID"
-    echo "<pre>"
-    echo "Spooling console for $userID at $systemID ..."
-    eval $cmd 2>&1                         # spool the specified console
-    echo "Done!"
-    echo "</pre>"
-  fi  
-    
-  cmd="/usr/local/sbin/catcons -w $USER $userID $systemID"
-  echo "<h3>$title</h3>"                   # add a heading 
-  echo '<table class="greenScreenTable" align="center">' 
-  echo "<tr>" 
-  startCell
-  echo "<pre>"                             # preformatted text
-  eval $cmd 2>&1                           # run script to list console
-  echo "</pre></td></tr></table>"          # end preformatted, cell
-  drawButtons                              # add buttons at bottom
-  echo "</body></html>"                    # end the page
- }                                         # drawPage()
-
-#+--------------------------------------------------------------------------+
 # global variables:
 userID=`echo $QUERY_STRING | awk -F'&' '{print $1}'`   # user ID is arg 1 
 systemID=`echo $QUERY_STRING | awk -F'&' '{print $2}'` # system ID is arg 2
@@ -52,5 +22,6 @@ setWebUIvars                               # override defaults with user's prefe
 startPage                                  # start the Web page
 cat consolez.css                           # inline consolez cascading style sheets
 setRole                                    # set user's role based on login credentials
-drawPage                                   # do the work 
+showOneConsole $userID $systemID $option   # do the work 
+drawButtons                                # add buttons at bottom
 

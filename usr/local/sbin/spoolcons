@@ -67,7 +67,7 @@ function usage
 #+--------------------------------------------------------------------------+
 function parseArgs
 # Parse arguments 
-# Arg 1: all arguments passed into scriopt 
+# Arg 1: all arguments passed into script 
 #+--------------------------------------------------------------------------+
  {
   : SOURCE: ${BASH_SOURCE}
@@ -133,7 +133,7 @@ function parseArgs
         shift                              # one arg is user apache is running as 
         if [ $# = 0 ]; then                # no description following --desc
           echo "ERROR: No USER following the -w flag"
-          exit 3                           # internal server error 
+          usage                            # internal server error 
         fi
         USER=$1                            # user apache is running as
         ;;
