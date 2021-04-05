@@ -67,7 +67,7 @@ function usage
 #+--------------------------------------------------------------------------+
 function parseArgs
 # Parse arguments 
-# Arg 1: all arguments passed into scriopt 
+# Arg 1: all arguments passed into script 
 #+--------------------------------------------------------------------------+
  {
   : SOURCE: ${BASH_SOURCE}
@@ -133,7 +133,7 @@ function parseArgs
         shift                              # one arg is user apache is running as 
         if [ $# = 0 ]; then                # no description following --desc
           echo "ERROR: No USER following the -w flag"
-          exit 3                           # internal server error 
+          usage                            # internal server error 
         fi
         USER=$1                            # user apache is running as
         ;;
@@ -218,11 +218,14 @@ function checkEnv
 # if [ "$webUI" = yes ]; then              # being called from the Web UI
 #   return                                 # all done
 # fi
-  if [ ${#USER} = 0 ]; then                # env var USER not set
-    echo "ERROR: The environment variable USER must be set"
-    exit 2                                 # not authorized
+  local thisUser=`id | awk -F\( '{print $2}' | awk -F\) '{print $1}'` # get the current user
+  echo "thisUser = $thisUser">>/home/zadmin/fubar
+
+  if [ ${#thisUser} = 0 ]; then            # not expected 
+    echo "ERROR: Unexpected: id | awk -F\( '{print $2}' | awk -F\) '{print $1}' did not return current user"
+    exit 3                                 # internal server error
   fi
-  if [ "$USER" = root -a "$cmdCalled" = spoolcons ]; then 
+  if [ "$thisUser" = root -a "$cmdCalled" = spoolcons ]; then 
     echo "ERROR: Sorry, spoolcons cannot run as root" 
     exit 2                                 # not authorized
   fi
@@ -348,7 +351,7 @@ function getLocalConsole
     rc=$?
     if [ "$rc" != 0 ]; then                # error
       echo "ERROR: $cmd returned $rc"
-	  echo "Does this virtual machine have C privilege class?"
+      echo "Does this virtual machine have C privilege class?"
       exit 4                               # cannot perform operation
     fi
   fi
