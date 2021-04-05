@@ -17,6 +17,7 @@ function startPage
 
   echo "Content-type: text/html"
   echo ""
+#echo "top of startPage">>/home/zadmin/fubar
   echo '<!DOCTYPE html><head><meta https-equiv="Content-Type" content="text/html; charset=iso-8859-1" />'
   echo "<link rel=\"icon\" href=\"/$webIcon\" type=\"image/x-icon\"/>"
   echo "<title>$title</title>"
@@ -87,8 +88,8 @@ function drawButtons
     echo "</form></td>"                    # end form, cell
   fi
 
-  # add a 'Refresh console' button to onecons only
-  if [ "$cmdCalled" = onecons ]; then      
+  # add a 'Refresh console' button to onecons and searchforcons 
+  if [ "$cmdCalled" = onecons -o "$cmdCalled" = searchforcons ]; then      
     local spoolCmd="$SCRIPT_NAME?$userID&amp;$systemID&amp;spool"
     echo "<td><form method=POST action=\"${spoolCmd}\" accept-charset=utf-8>"
     echo "<input class=button $greenStyle type=submit value=\"Refresh console\">&nbsp;"
@@ -140,7 +141,7 @@ function uudecode
 #+--------------------------------------------------------------------------+
  {
   : "${*//+/ }"; echo -e "${_//%/\\x}";    # have no idea how this works
- }                                         # zUUdecode()
+ }                                         # uudecode()
 
 #+--------------------------------------------------------------------------+
 function setWebUIvars
@@ -169,32 +170,126 @@ function setRole
     echo "</td></tr></table>"              # end cell, row and table
     exit 3                                 # internal server error
   fi
-  if [ "$adminGID" = 0 ]; then               # all users are full admins
+  if [ "$adminGID" = 0 ]; then             # all users are full admins
     role="admin"
     return                                 # all done
   fi
 
   # determine user's role based on their GID
   local idOut=`id $REMOTE_USER`
-  local gid=`echo $idOut | awk -F'gid=' '{print $2}' | awk -F'(' '{print $1}'`
-  if [ "$adminGID" = 0 ]; then             # all users are admins
-    role="admin"
-  elif [ "$gid" = "$netadminGID" ]; then   # in netadmins group
-    role="netadmin"
-  elif [ "$gid" = "$adminGID" ]; then      # in admins group
-    role="admin"
-  else                                     # not authorized
+  local groups=`echo $idOut | awk -F'gid=' '{print $2}'`
+  if [ ${#groups} = 0 ]; then
     startPage ERROR
     startTable
     startRow "#FF6666"                     # draw row in light red
-    echo "<td><h2>Sorry!</h2><p>You are not authorized to use $cmdCalled</p>"
+    echo "<td><h2>Sorry!</h2><p>You are not authorized to use $cmdCalled</h2>"
+    echo "Unexpected, no groups found in $idOut"
+    echo "<p>REMOTE_USER = $REMOTE_USER idOut = $idOut </p>"
     echo "</td></tr></table>"              # end cell, row and table
-    exit 2                                 # not authorized 
+    exit 2                                 # not authorized
+  fi
+  echo "$groups" | grep $adminGID >/dev/null
+  if [ $? = 0 ]; then
+    role="admin" 
+  else
+    echo "$groups" | grep $netadminGID >/dev/null
+    if [ $? = 0 ]; then
+      role="netadmin"
+    else
+      startPage ERROR
+      startTable
+      startRow "#FF6666"                     # draw row in light red
+      echo "<td><h2>Sorry!</h2><p>You are not authorized to use $cmdCalled</h2>"
+      echo "<p>REMOTE_USER = $REMOTE_USER idOut = $idOut gid = $gid</p>"
+      echo "</td></tr></table>"              # end cell, row and table
+      exit 2                                 # not authorized 
+    fi
   fi
 
   # get the user Apache is running as
   USER=`ps -ef|egrep '(httpd|apache2|apache)'|grep -v root|head -n1|awk '{print $1}'`
  }                                         # setRole()
+
+#+--------------------------------------------------------------------------+
+function addScrollButton
+# Draw a button that scrolls to bottom of page
+# Args: none
+#+--------------------------------------------------------------------------+
+ {
+  # JavaScript to scroll to bottom of page
+  echo "<script>"
+  echo "scrollingElement = (document.scrollingElement || document.body)"
+  echo "function scrollToBottom () {"
+  echo "   scrollingElement.scrollTop = scrollingElement.scrollHeight;"
+  echo "}"
+  # echo "function scrollToTop (id) {"
+  # echo "   scrollingElement.scrollTop = 0;"
+  # echo "}"
+  echo "</script>"
+
+  # add 'Scroll to bottom' button
+  echo "<table align=center><tr><td>"      # start table, row and cell
+  echo "<button class=button style=\"background-color:#8CFF66\" onClick=\"scrollToBottom()\">Scroll to Bottom</button>"
+  echo "</td></tr></table>"                # end cell, row and table
+  echo "<br>"                              # leave some room
+ }                                         # addScrollButton()
+
+#+--------------------------------------------------------------------------+
+function showOneConsole
+# Draw a page showing one saved console file
+# Arg 1: user ID
+# Arg 2: system ID
+# Arg 3: option - if any
+#+--------------------------------------------------------------------------+
+ {
+  local userID=$1
+  local systemID=$2
+  local option=$3
+
+  local cmd                                # a command
+
+  # add page title and a 'Scroll to bottom' button
+  echo "<h3>$title</h3>"                   # add a heading
+  addScrollButton                          # add a 'Scroll to bottom' button
+
+  # check if user requested console to be spooled
+  if [ "$option" = spool ]; then           # user asked to have console spooled
+    cmd="/usr/local/sbin/spoolcons -w $USER $userID $systemID"
+    echo "<pre align=\"center\">"
+    # echo "Spooling console with command: $cmd ..."
+    eval $cmd 2>&1                         # spool the specified console
+    echo "Done!"
+    echo "</pre>"
+  fi
+
+  # draw the main table
+  echo '<table class="greenScreenTable" align="center">'
+  echo "<tr>"
+  startCell
+  echo "<pre>"                             # preformatted text
+  cmd="/usr/local/sbin/catcons -w $USER $userID $systemID"
+  eval $cmd 2>&1                           # run script to list console
+  echo "</pre></td></tr></table>"          # end preformatted, cell
+  echo "</body></html>"                    # end the page
+ }                                         # showOneConsole()
+
+#+--------------------------------------------------------------------------+
+function drawSearchBar
+# Draw a search bar to find consoles by host name or user ID if such a tool
+# exists, specified by the global variable 'searchTool'
+# Args: none
+#+--------------------------------------------------------------------------+
+ {
+  if [ ${#searchTool} = 0 -o "$role" != admin ]; then # tool name is not set or user is not an admin 
+    return                                 # all done
+  fi
+  echo '<table class="consolezTable">'
+  echo "<tr><form method=GET action=/ldap/searchforcons accept-charset=utf-8>"
+  echo "<td><b>Search for z/VM consoles by host name or user ID:</b></td>" # what to search for
+  echo "<td><input type=text id=searchString name=searchString></td>"
+  echo "</form>"                           # end form
+  echo "</tr></table><br>"                 # end row, table, leave some room
+ }                                         # drawSearchBar{}
 
 #---------------------------------------------------------------------------
 # global variables

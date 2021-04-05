@@ -99,6 +99,7 @@ function drawMainTable
 
   # draw the table
   echo "<h2>$title</h2>"
+  drawSearchBar                            # enable searching for consoles
   echo '<table class="consolezTable" align="center">' # start consolez table aligned in center 
   local nextRow                            # next row from test 
   exec 3<&0                                # Link file descriptor #3 with stdin

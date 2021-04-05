@@ -1,0 +1,26 @@
+Attendees
+  John Mertic, Mike MacIsaac, Davin Nicolette, Alexander Efremkin
+
+Introductions 
+  Alexander Efremkin, and later Davin Nicolette
+  Alexander works with Tessia - automating installations on z/VM, KVM and on bare LPAR
+
+Role of the TSC
+  The leadership group of the project
+
+Public announcement of consolez will be "in a couple of weeks"
+
+Ideas for promotion - Mike will:
+  Put in for a paper for VM Workshop
+  Ask to present at MVMUA?
+
+TSC chairperson - Mike MacIsaac
+
+Infrastructure
+  Mike is transferring repo from his github site to openmainframeproject 
+  There is consolez Slack channel going
+  
+  There was a discussion on how to maintain the code
+
+Next meeting: Feb 16th, 1:00 EST
+

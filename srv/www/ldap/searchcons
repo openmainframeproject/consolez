@@ -5,7 +5,8 @@
 #
 #+--------------------------------------------------------------------------+
 #
-# searchcons - Draw a page that enables the searching of consoles 
+# searchcons - Draw a page that enables the searching of saved console data
+#              on the Linux side 
 #
 #---------------------------------------------------------------------------
 function headerRow
@@ -97,25 +98,39 @@ function drawMainTable
   echo "</td></tr></table><br>"            # end cell, row, table, leave some room
 
   # perform the search
-  if [ ${#pattern} != 0 ]; then            # there is a search pattern
-    echo '<table class="greenScreenTable">'  # start a 'green screen' table 
-    echo "<tr><td><pre>"                   # start row, cell, preformatted text
+  if [ ${#pattern} = 0 ]; then             # no pattern found
+    echo "<h4>A search pattern must be supplied</h4>"
+  else                                     # there is a search pattern
     if [ ${#userIDflt} = 0 ]; then         # no user ID search criteria
       userIDflt=':'                        # default is all
     fi
     if [ ${#systemIDflt} = 0 ]; then       # no user ID search criteria
       systemIDflt=':'                      # default is all
     fi
-    if [ ${#pattern} = 0 ]; then           # no pattern found
-      echo "A search pattern must be supplied"
-    else
-      local args="-w $USER $userIDflt $systemIDflt $pattern"
-      if [ "$nocase" = yes ]; then         # case insensitive search
-        args="-i $args"                    # add -i arg to grepcons
-      fi
-      local cmd="/usr/local/sbin/grepcons $args" # command to send
-      echo "Searching with: $cmd"
-      $cmd                                 # run the command
+    local args="-w $USER $userIDflt $systemIDflt $pattern"
+    if [ "$nocase" = yes ]; then           # case insensitive search
+      args="-i $args"                      # add -i arg to grepcons
+    fi
+    local cmd="/usr/local/sbin/grepcons $args" # command to send
+    # echo "Searching with: $cmd"
+    local cmdOut                           # output from command
+    local rc                               # a return code
+    echo '<pre align="center">'            # preformatted text
+    cmdOut=`$cmd`                          # run the command
+    rc=$? 
+    echo "$cmdOut" | head -1               # first line shows grep command run
+    if [ "$rc" = 0 ]; then                 # search was successful
+      local numLines=`echo "$cmdOut" | wc -l`
+      echo "</pre>"                        # end preformatted text 
+      echo "<h4>Pattern '$pattern' matched $numLines lines</h4>" 
+      addScrollButton                      # add a 'Scroll to bottom' button
+      echo '<table class="greenScreenTable">' # start a 'green screen' table 
+      echo "<tr><td><pre>"                 # start row, cell, preformatted text
+      echo "$cmdOut"                       # display the output
+      echo "</pre>"                        # end preformatted text
+    else                                   # no lines found
+      echo "</pre>"                        # end preformatted text
+      echo "<h4>Pattern '$pattern' did not match any lines</h4>"
     fi
   fi
   echo "</td></tr></table><br>"            # end cell, row, table, leave some room
@@ -127,7 +142,7 @@ userIDflt=`echo "$QUERY_STRING" | sed -n 's/^.*userIDflt=\([^&]*\).*$/\1/p'`
 systemIDflt=`echo "$QUERY_STRING" | sed -n 's/^.*systemIDflt=\([^&]*\).*$/\1/p'`
 pattern=`echo "$QUERY_STRING" | sed -n 's/^.*pattern=\([^&]*\).*$/\1/p'`
 nocase=`echo "$QUERY_STRING" | sed -n 's/^.*nocase=\([^&]*\).*$/\1/p'`
-title="Search z/VM consoles"               # page title
+title="Search saved z/VM console data"     # page title
 
 # main()
 source /usr/local/sbin/consfuncs           # import common line command functions

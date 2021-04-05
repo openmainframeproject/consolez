@@ -1,0 +1,42 @@
+
+Consolez - TSC meeting  16 Feb 2021
+
+##Attendees:
+  -Mike MacIsaac, John Mertic, 
+
+##Discuss new function
+  -NEWS!  v0.97 just uploaded today
+  -Added 'Scroll to bottom' button
+  -Search 'saved' consoles
+  -Search for consoles (saved or not) by host name or user ID
+     --But, this leverages an in house tool 
+     --Open source 'finder'?  => intern project?
+
+##Demo
+  -Home page
+  -View one console
+  -View one LPAR
+  -Spool logged on user ID
+  -Search saved data
+  -Help
+  -Search through finder (internal tool)
+     -Show finder Web UI
+
+##Needed function
+  -Add corresponding 'Scroll to top' button?
+  -Limit size of console output 
+     --OPMGRM1 500,000+ lines console brought Chrome/Apache to their knees
+     --Allow max of perhps last 100,000 lines (this would be a preference)
+     --Allow page up/page down
+  -Prune data 
+     --hook into logrotate?
+     --not much disk space is being used (55MB of 31GB):
+  -Finder
+     --Start an open source 'sister' project?
+
+##Get the word out:
+  -MVMUA - April 
+  -VM Workshop - June
+  -SHARE - August event? (email in to share.org)
+
+##Q&A
