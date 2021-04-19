@@ -351,7 +351,6 @@ function getLocalConsole
     rc=$?
     if [ "$rc" != 0 ]; then                # error
       echo "ERROR: $cmd returned $rc"
-      echo "Does this virtual machine have C privilege class?"
       exit 4                               # cannot perform operation
     fi
   fi

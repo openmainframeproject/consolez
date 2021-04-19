@@ -6,29 +6,180 @@
 #+--------------------------------------------------------------------------+
 #
 # cpcmds - For admins run any CP command specified.  
-#         For netadmins allow the following commands to be run:
-#         Command                Keyword
-#         Q VSWITCH              QVSW
-#         Q VSWITCH DETAILS      QVSWDET
-#         Q CONTROLLER           QCONT
-#         Q IUCV                 QIUCV
-#         Q VMLAN                QVMLAN
-#         Q PORT GROUP           QPORTG
+#          For netadmins allow the following commands to be run:
+#          Command                Keyword
+#          Q VSWITCH              QVSW
+#          Q VSWITCH DETAILS      QVSWDET
+#          Q CONTROLLER           QCONT
+#          Q IUCV                 QIUCV
+#          Q VMLAN                QVMLAN
+#          Q PORT GROUP           QPORTG
 #
 #+--------------------------------------------------------------------------+
-function drawMainTable
+function drawLPARchooser
+# Draw a table that enables the user to choose which LPARs to run the CP commands on 
+# Args: none
+# Global variables:
+#   allLPARs: list of env:systemID pairs is set
+#+--------------------------------------------------------------------------+
+ {
+  local curCol="none"                      # current column
+  local env                                # current environment
+  local lastEnv="none"                     # previous environment
+  local nextLPAR 
+  local systemID
+
+  startTable
+  echo "<h3>Choose LPARs</h3>"
+  allLPARs=`/usr/local/sbin/lscons | awk '{print $1}'`
+  for nextLPAR in $allLPARs; do
+    env=`echo $nextLPAR | awk -F: '{print $1}'`
+    systemID=`echo $nextLPAR | awk -F: '{print $2}'`
+    if [ "$env" != "$lastEnv" ]; then      # this is a new environment
+      if [ "$lastEnv" != none -a "$curCol" != 1 ]; then  
+        for i in `seq $curCol $numCols`; do # fill up empty cells
+          echo "<td>&nbsp;</td>"           # empty cell
+        done
+      fi
+      echo "</tr>"                         # end current row
+      curCol=1                             # reset counter
+      echo "<tr>"                          # start row for environment
+      echo "<td colspan=\"$numCols\" style=\"background-color:$color1;\">"
+      echo "<input type='checkbox' name='e' value='$env'>$env</td>"
+      echo "</tr>"                         # end row
+      lastEnv=$env                         # save last env
+    fi
+    # add a check box, the LPAR, IP address, version, memory and CPUs
+    echo "<td>&nbsp;&nbsp<input type='checkbox' name='l' value='$systemID'>$systemID</td>"
+    let curCol=$curCol+1                   # increment counter
+    if [ "$curCol" -gt "$numCols" ]; then  # row is full
+      local i
+      echo "</tr>"                         # end current row
+      echo "<tr>"                          # start new row
+      curCol=1                             # reset counter
+    fi
+  done
+  for i in `seq $curCol $numCols`; do      # fill up empty cells
+    echo "<td>&nbsp;</td>"                 # empty cell
+  done
+  echo "</table><br>"                      # end table, leave room
+ }                                         # drawLPARchooser()
+
+#+--------------------------------------------------------------------------+
+function addOneLPAR
+# Add an LPAR to LPARlist if not already there
+# Arg 1: LPAR to add
+# Global variables:
+#   LPARlist: space separated list of LPARs
+#+--------------------------------------------------------------------------+
+ {
+  local LPARtoAdd=$1
+  if [ ${#LPARtoAdd} = 0 ]; then            # arg not passed
+    echo "INTERNAL ERROR - no LPAR passed to addOneLPAR<br>"
+    exit 3
+  fi
+  echo "$LPARlist" | grep $LPARtoAdd >/dev/null
+  if [ $? != 0 ]; then                     # not already in list
+    LPARlist="$LPARlist $LPARtoAdd"        # add to list
+  fi  
+ }                                         # addOneLPAR()
+
+#+--------------------------------------------------------------------------+
+function addToLPARlist
+# Add an environments worth of LPARs to LPARlist 
+# Arg 1: environment to add
+# Global variables:
+#   allLPARs: all envs and LPARs in org of the form <env>:<LPAR>
+#   LPARlist: space separated list of LPARs
+#+--------------------------------------------------------------------------+
+ {
+  local envToAdd=$1
+  if [ ${#envToAdd} = 0 ]; then            # arg not passed
+    echo "INTERNAL ERROR - no env passed to addToLPARlist<br>"
+    exit 3
+  fi
+  local nextEnv
+  local nextLPAR
+  local nextSystemID
+
+  for nextLPAR in $allLPARs; do            # loop through all env:systemID pairs
+    nextEnv=`echo $nextLPAR | awk -F: '{print $1}'` # get env
+    if [ "$nextEnv" = "$envToAdd" ]; then  # there is a hit 
+      nextSystemID=`echo $nextLPAR | awk -F: '{print $2}'` # get system ID
+      addOneLPAR $nextSystemID             # add if not already there
+    fi
+  done
+ }                                         # addToLPARlist()
+
+#+--------------------------------------------------------------------------+
+function setLPARlist
+# Set the global variable nodeList based on the userID numbers
+# Args: none
+# Global variables:
+#   QUERY_STRING: can have multiple '&l=<name>' values where <name> is an LPAR
+#                      and multiple '&e=<name>' values where <name> is an environment          
+#   nodeList: is set with a comma-delimited list
+#+--------------------------------------------------------------------------+
+ {
+  local lineSep=`echo "$QUERY_STRING" | sed 's/&/\n/g'`
+  LPARlist=`echo "$lineSep" | grep '^l=' | sed 's/l=/ /g'`
+  local envs=`echo "$lineSep" | grep '^e=' | sed 's/e=/ /g'`
+  local nextEnv
+  for nextEnv in $envs; do                 # loop through selected env's
+    addToLPARlist $nextEnv                 # add a set of LPARs
+  done
+ }                                         # setLPARlist()
+
+#+--------------------------------------------------------------------------+
+function drawCPcmdButtons
+# Draw navigation buttons specifically for this page
+# Args: none
+#+--------------------------------------------------------------------------+
+ {
+  local greenStyle="style=\"background-color:#8CFF66\""
+  local yellowStyle="style=\"background-color:#FFDB4D\""
+
+  # For netadmins add a set of buttons
+  if [ "$role" = netadmin ]; then 
+    echo "<br><table align=center><tr>"  # leave room, start table and row
+    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QCONT' accept-charset=utf-8>"
+    echo "<input class=button $greenStyle type=submit value=\"Q CONTROLLER\">&nbsp;"
+    echo "</form></td>"                    # end form and cell
+    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QIUCV' accept-charset=utf-8>"
+    echo "<input class=button $greenStyle type=submit value=\"Q IUCV\">&nbsp;"
+    echo "</form></td>"                    # end form and cell
+    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QPORTG' accept-charset=utf-8>"
+    echo "<input class=button $greenStyle type=submit value=\"Q PORT GROUP\">&nbsp;"
+    echo "</form></td>"                    # end form and cell
+    echo "</tr><tr>"                       # start a new row 
+    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QVMLAN' accept-charset=utf-8>"
+    echo "<input class=button $greenStyle type=submit value=\"Q VMLAN\">&nbsp;"
+    echo "</form></td>"                    # end form and cell
+    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QVSW' accept-charset=utf-8>"
+    echo "<input class=button $greenStyle type=submit value=\"Q VSWITCH\">&nbsp;"
+    echo "</form></td>"                    # end form and cell
+    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QVSWDET' accept-charset=utf-8>"
+    echo "<input class=button $greenStyle type=submit value=\"Q VSWITCH DET\">&nbsp;"
+    echo "</form></td>"                    # end form and cell
+    echo "</tr></table>"                   # end row, table 
+  elif [ "$role" = admin ]; then
+    echo "<table align=center><tr><td>"    # leave room, start table, row and cell
+    echo "<p><b>CP command to issue:</b></p>"
+    echo "<input type=text style=\"width: 300px;\" id=adminCmd name=adminCmd>"
+  fi
+  echo "<br><br>"                          # leave some room
+ }                                         # drawCPcmdButtons()
+
+#+--------------------------------------------------------------------------+
+function runCommand
 # Draw a table with all guests that have saved console data - $numCols per row 
 # Args: none 
 #+--------------------------------------------------------------------------+
  {
-  startPage $title                         # start the Web page
-  cat consolez.css                         # inline cascading style sheets
-
   local CPcmd                              # the CP command to run 
   local cmd                                # a command
   local rc                                 # a return code
 
-  echo "<h2>$title</h2>"
   if [ "$role" = admin ]; then             # user is a full admin 
     if [ ${#adminCmd} = 0 ]; then          # no command has yet been specified
       return                               # all done
@@ -65,70 +216,55 @@ function drawMainTable
   fi 
   echo '<table class="greenScreenTable">'  # start a 'green screen' table 
   echo "<tr><td><pre>"                     # start row, cell, preformatted text
-  cmd="/usr/local/sbin/cpcommand -w $USER $systemID $CPcmd" # command to send
-  echo "calling: $cmd"
-  $cmd                                     # run the command
+
+  # run CP commands on each LPAR selected
+  local nextLPAR
+  for nextLPAR in $LPARlist; do            # loop through each LPAR
+    cmd="/usr/local/sbin/cpcommand -w $nextLPAR $CPcmd" # command to send
+    echo "calling: $cmd"
+    eval $cmd | sed "s/^/${nextLPAR}: /g"  # run command prefixing each line with LPAR:
+    echo                                   # leave some room
+  done
   echo "</td></tr></table>"                # end cell, row, table
- }                                         # drawMainTable()
+ }                                         # runCommand()
 
 #+--------------------------------------------------------------------------+
-function drawCPcmdButtons
-# Draw navigation buttons specifically for this page
+function doTheWork 
+# Draw the entire page 
 # Args: none
 #+--------------------------------------------------------------------------+
  {
-  local greenStyle="style=\"background-color:#8CFF66\""
-  local yellowStyle="style=\"background-color:#FFDB4D\""
-
-  # For netadmins add a set of buttons
-  if [ "$role" = netadmin ]; then 
-    echo "<br><table align=center><tr>"  # leave room, start table and row
-    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QCONT' accept-charset=utf-8>"
-    echo "<input class=button $greenStyle type=submit value=\"Q CONTROLLER\">&nbsp;"
-    echo "</form></td>"                    # end form and cell
-    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QIUCV' accept-charset=utf-8>"
-    echo "<input class=button $greenStyle type=submit value=\"Q IUCV\">&nbsp;"
-    echo "</form></td>"                    # end form and cell
-    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QPORTG' accept-charset=utf-8>"
-    echo "<input class=button $greenStyle type=submit value=\"Q PORT GROUP\">&nbsp;"
-    echo "</form></td>"                    # end form and cell
-
-    echo "</tr><tr>"                       # start a new row 
-    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QVMLAN' accept-charset=utf-8>"
-    echo "<input class=button $greenStyle type=submit value=\"Q VMLAN\">&nbsp;"
-    echo "</form></td>"                    # end form and cell
-    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QVSW' accept-charset=utf-8>"
-    echo "<input class=button $greenStyle type=submit value=\"Q VSWITCH\">&nbsp;"
-    echo "</form></td>"                    # end form and cell
-    echo "<td><form method=POST action='/ldap/cpcmds?systemID=$systemID&amp;netadminCmd=QVSWDET' accept-charset=utf-8>"
-    echo "<input class=button $greenStyle type=submit value=\"Q VSWITCH DET\">&nbsp;"
-    echo "</form></td>"                    # end form and cell
-    echo "</tr></table>"                   # end row, table 
-  elif [ "$role" = admin ]; then
-    echo "<table align=center><tr><td>"    # leave room, start table, row and cell
-    echo "<p><b>CP command to issue:</b></p>"
-    echo "<form action=\"/ldap/cpcmds\" method=\"GET\">"
-    echo "<input type=hidden name=systemID value=\"$systemID\">"
-    echo "<input type=text style=\"width: 300px;\" id=adminCmd name=adminCmd>"
-    echo "</form></td></tr></table>"       # end form, cell, row, table
+  if [ ${#systemID} = 0 ]; then            # no LPAR ID passed in
+    title="Run CP commands"
+  else                                     # include LPAR ID
+    title="Run CP commands on $systemID"
   fi
-  echo "<br>"                              # leave some room
- }                                         # drawCPcmdButtons()
+  startPage $title                         # start the Web page
+  cat consolez.css                         # inline cascading style sheets
+  echo "<h2>$title</h2>"                   # draw title
+  echo "<form action=\"/ldap/cpcmds\" method=\"GET\">"
+  drawLPARchooser                          # if no system ID passed in, allow choosing of LPARs
+  setLPARlist                              # set which LPAR/environments have been set
+  drawCPcmdButtons                         # add custom navigation buttons
+  runCommand                               # run CP command and show output
+  echo "</form><table>"                    # end form and table
+  drawButtons                              # add navigation buttons
+  echo "</body></html>"                    # end the page
+ }                                         # doTheWork()
 
 #+--------------------------------------------------------------------------+
 # global variables
 adminCmd=`echo "$QUERY_STRING" | sed -n 's/^.*adminCmd=\([^&]*\).*$/\1/p'`
 netadminCmd=`echo "$QUERY_STRING" | sed -n 's/^.*netadminCmd=\([^&]*\).*$/\1/p'`
 systemID=`echo "$QUERY_STRING" | sed -n 's/^.*systemID=\([^&]*\).*$/\1/p'`
-title="Run CP commands on $systemID"       # page title
+LPARlist=""                                # all z/VM LPARs chosen
+allLPARs=""                                # all z/VM LPARs in org
 
 # main()
 source /usr/local/sbin/consfuncs           # import common line command functions
 source consuifuncs                         # import common Web UI functions
 setWebUIvars                               # override defaults with user's preferences
 setRole                                    # set user's role based on login credentials
-drawMainTable                              # show table with all user IDs that have data 
-drawCPcmdButtons                           # add custom navigation buttons
-drawButtons                                # add navigation buttons
+doTheWork                                  # draw the page 
 
 
