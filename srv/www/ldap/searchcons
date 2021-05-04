@@ -50,6 +50,21 @@ function drawClearButton
  }                                         # drawClearButton()
 
 #+--------------------------------------------------------------------------+
+function getArgs
+# Get search arguments passed in on URL 
+# Args: none
+#+--------------------------------------------------------------------------+
+ {
+  userIDflt=`echo "$QUERY_STRING" | sed -n 's/^.*userIDflt=\([^&]*\).*$/\1/p'`
+  userIDflt=`uudecode $userIDflt`
+  systemIDflt=`echo "$QUERY_STRING" | sed -n 's/^.*systemIDflt=\([^&]*\).*$/\1/p'`
+  systemIDflt=`uudecode $systemIDflt`
+  pattern=`echo "$QUERY_STRING" | sed -n 's/^.*pattern=\([^&]*\).*$/\1/p'`
+  pattern=`uudecode $pattern`
+  nocase=`echo "$QUERY_STRING" | sed -n 's/^.*nocase=\([^&]*\).*$/\1/p'`
+ }                                         # setArgs()
+
+#+--------------------------------------------------------------------------+
 function drawMainTable
 # Draw a table with search criteria for user ID, system ID/environment 
 #   the text patter to search form and a 'Search consoles' button
@@ -65,7 +80,8 @@ function drawMainTable
 
   # draw table with the search criteria
   echo "<h2>$title</h2>"
-  echo "<h4 align=center>Enter a search pattern - Blank User ID/SystemID/Environmnent means search all</h4>"
+  echo "<h3 align=center>Enter a search pattern</h3>"
+  echo "<h4 align=center>Blank User ID or Environment:CEC:LPAR means search all</h4>"
   echo '<table class="consolezTable" align=center>'         # leave room, start table and row
   headerRow 3 Search filters               # first header row
 
@@ -80,7 +96,7 @@ function drawMainTable
   echo "</tr><tr>"                         # end row, start row
 
   # row 3
-  echo "<td>System ID/Environment</td>"
+  echo "<td>Environment:CEC:LPAR</td>"
   echo "<td><input type=text id=systemIDflt name=systemIDflt value=\"$systemIDflt\"></td>"
   echo "<td></td>"                         # empty cell
   echo "</tr><tr>"                         # end row, start row
@@ -107,7 +123,7 @@ function drawMainTable
     if [ ${#systemIDflt} = 0 ]; then       # no user ID search criteria
       systemIDflt=':'                      # default is all
     fi
-    local args="-w $USER $userIDflt $systemIDflt $pattern"
+    local args="$userIDflt $systemIDflt $pattern"
     if [ "$nocase" = yes ]; then           # case insensitive search
       args="-i $args"                      # add -i arg to grepcons
     fi
@@ -122,6 +138,7 @@ function drawMainTable
     if [ "$rc" = 0 ]; then                 # search was successful
       local numLines=`echo "$cmdOut" | wc -l`
       echo "</pre>"                        # end preformatted text 
+      let numLines=$numLines-1             # dont count 'Searching from' line
       echo "<h4>Pattern '$pattern' matched $numLines lines</h4>" 
       addScrollButton                      # add a 'Scroll to bottom' button
       echo '<table class="greenScreenTable">' # start a 'green screen' table 
@@ -138,10 +155,10 @@ function drawMainTable
 
 #+--------------------------------------------------------------------------+
 # global variables
-userIDflt=`echo "$QUERY_STRING" | sed -n 's/^.*userIDflt=\([^&]*\).*$/\1/p'`
-systemIDflt=`echo "$QUERY_STRING" | sed -n 's/^.*systemIDflt=\([^&]*\).*$/\1/p'`
-pattern=`echo "$QUERY_STRING" | sed -n 's/^.*pattern=\([^&]*\).*$/\1/p'`
-nocase=`echo "$QUERY_STRING" | sed -n 's/^.*nocase=\([^&]*\).*$/\1/p'`
+userIDflt=""                               # user ID filter
+systemIDflt=""                             # env:CEC:LPAR filter
+pattern=""                                 # search patter
+nocase=""                                  # Case insensitive flag
 title="Search saved z/VM console data"     # page title
 
 # main()
@@ -149,6 +166,7 @@ source /usr/local/sbin/consfuncs           # import common line command function
 source consuifuncs                         # import common Web UI functions
 setWebUIvars                               # override defaults with user's preferences
 setRole                                    # set user's role based on login credentials
+getArgs                                    # get arguments passed in
 drawMainTable                              # show table with all user IDs that have data 
 drawButtons                                # add custom navigation buttons
 

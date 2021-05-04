@@ -9,12 +9,14 @@ Let's call it version 0.90 so there will be ten tries to get it to version 1.0  
 
 Change history:
 ==============================================================================
+Version 1.0-1 - Apr 19, 2021
+-) Added and environment/LPAR chooser to the CP commands page 
+-) Updated documentation
+-) Added an RPM on github.com 
+==============================================================================
 Version 0.97 - Feb 15, 2021
 -) Added a search function for consoles on the z/VM side, not saved on the Linux side
 -) Added a 'Scroll to bottom' button on pages where long console data exists
--) 
-==============================================================================
-... five interal builds not uploaded to github ...
 ==============================================================================
 Version 0.91 - Dec 28, 2020
 -) Added a search of saved console data  - grepcons CLI and a new Web page searchcons

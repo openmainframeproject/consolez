@@ -17,7 +17,6 @@ function startPage
 
   echo "Content-type: text/html"
   echo ""
-#echo "top of startPage">>/home/zadmin/fubar
   echo '<!DOCTYPE html><head><meta https-equiv="Content-Type" content="text/html; charset=iso-8859-1" />'
   echo "<link rel=\"icon\" href=\"/$webIcon\" type=\"image/x-icon\"/>"
   echo "<title>$title</title>"
@@ -97,13 +96,10 @@ function drawButtons
   fi
  
   # add a 'CP commands' button to all pages but consolez
-#  if [ "$cmdCalled" != consolez ]; then    # add the button
-    echo "<td><form action=\"/ldap/cpcmds\" accept-charset=utf-8>"
-#   echo "<td><form action=\"/ldap/cpcmds?systemID=$systemID\" accept-charset=utf-8>"
-    echo "<button class=button $greenStyle>CP commands</button>"
-    echo "<input type=hidden name=systemID value=\"$systemID\">"
-    echo "</form></td>"                    # end form and cell
-#  fi
+  echo "<td><form action=\"/ldap/cpcmds\" accept-charset=utf-8>"
+  echo "<button class=button $greenStyle>CP commands</button>"
+  # echo "<input type=hidden name=systemID value=\"$systemID\">"
+  echo "</form></td>"                    # end form and cell
 
   # add a 'Search' button
   if [ "$cmdCalled" != searchcons ]; then  # add the button
@@ -118,7 +114,7 @@ function drawButtons
   echo "</form></td>"                      # end form, cell
 
   echo "</tr></table>"                     # row, table
- }
+ }                                         # drawButtons()
 
 #---------------------------------------------------------------------------
 function startCell
@@ -141,7 +137,7 @@ function uudecode
 # Arg 1: the string to decode
 #+--------------------------------------------------------------------------+
  {
-  : "${*//+/ }"; echo -e "${_//%/\\x}";    # have no idea how this works
+  : "${*//+/ }"; echo -e "${_//%/\\x}";    # have no idea HOW this works just THAT it does
  }                                         # uudecode()
 
 #+--------------------------------------------------------------------------+
@@ -208,7 +204,7 @@ function setRole
   fi
 
   # get the user Apache is running as
-  USER=`ps -ef|egrep '(httpd|apache2|apache)'|grep -v root|head -n1|awk '{print $1}'`
+#  USER=`ps -ef|egrep '(httpd|apache2|apache)'|grep -v root|head -n1|awk '{print $1}'`
  }                                         # setRole()
 
 #+--------------------------------------------------------------------------+
@@ -254,9 +250,9 @@ function showOneConsole
 
   # check if user requested console to be spooled
   if [ "$option" = spool ]; then           # user asked to have console spooled
-    cmd="/usr/local/sbin/spoolcons -w $USER $userID $systemID"
+    cmd="/usr/local/sbin/spoolcons $userID $systemID"
     echo "<pre align=\"center\">"
-    # echo "Spooling console with command: $cmd ..."
+    echo "Spooling console with command: $cmd ..."
     eval $cmd 2>&1                         # spool the specified console
     echo "Done!"
     echo "</pre>"
@@ -267,7 +263,7 @@ function showOneConsole
   echo "<tr>"
   startCell
   echo "<pre>"                             # preformatted text
-  cmd="/usr/local/sbin/catcons -w $USER $userID $systemID"
+  cmd="/usr/local/sbin/catcons $userID $systemID"
   eval $cmd 2>&1                           # run script to list console
   echo "</pre></td></tr></table>"          # end preformatted, cell
   echo "</body></html>"                    # end the page

@@ -42,6 +42,7 @@ function readConfFile
   local LPARnum=0                          # z/VM number 
   local lineNum=0                          # current line number
   local curEnv=""                          # current environment
+  local curCEC=""                          # current CEC
   local nextLine                           # next line in input file
   local success=true                       # assume success
 
@@ -66,11 +67,11 @@ function readConfFile
           ;;
         consolezUser)
           consolezUser="$varValue"
-          if [ ! -d $HOME ]; then          # current USER does not have a home directory
-            echo "ERROR: user $USER must have a home directory in $HOME"
+          if [ ! -d $HOME ]; then          # current user does not have a home directory
+            echo "ERROR: user $thisUser must have a home directory in $HOME"
             exit 4                         # cannot perform operation
           fi
-          tmpConsFile="/home/$USER/tmpConsFile" # temp file to store latest console data 
+          tmpConsFile="/home/$thisUser/tmpConsFile" # temp file to store latest console data 
           verboseMsg "tmpConsFile is set to $tmpConsFile"
           ;;
         admins)                            # GID of full administrators
@@ -102,9 +103,12 @@ function readConfFile
         echo "ERROR: expected 2 fields but found $numFields on line $lineNum of $confFile: $nextLine"
         break                              # out of loop
       fi
-      curEnv=`echo $nextLine | awk '{print $2}'` # 2nd token in name of environment
+      curEnv=`echo $nextLine | awk '{print $2}'` # 2nd token is name of environment
       verboseMsg "processing new environment $curEnv"
       envs="$envs $curEnv"                 # add to list of environments
+    elif [ "${nextLine:0:3}" = CEC ]; then # new CEC in this environment
+      curCEC=`echo $nextLine | awk '{print $2}'` # 2nd token in CEC name
+      verboseMsg "processing new CEC $curCEC"
     else                                   # not a comment blank line nor environment
       if [ ${#curEnv} = 0 ]; then          # first environment not found
         echo "ERROR: line $lineNum of $confFile must start with 'environment'"
@@ -117,8 +121,9 @@ function readConfFile
         break                              # out of loop
       fi
       let LPARnum=$LPARnum+1               # increment LPAR count
-      arr[$LPARnum,engServer]=`echo "$nextLine" | awk '{print $1}'` # engineering server is first token
-      arr[$LPARnum,systemID]=`echo "$nextLine" | awk '{print $2}'`  # z/VM system identifier is second token
+      arr[$LPARnum,engServer]=`echo "$nextLine" | awk '{print $1}'`  # engineering server is first token
+      arr[$LPARnum,systemID]=`echo "$nextLine" | awk '{print $2}'`   # z/VM system identifier is second token
+      arr[$LPARnum,CEC]="$curCEC"          # save CEC 
       arr[$LPARnum,env]="$curEnv"          # save environment
     fi
   done 3< <(echo "$inputLines")            # read from input on file descriptor 3
@@ -164,8 +169,13 @@ function CPcmd
 
 #+--------------------------------------------------------------------------+
 function getEngServer
-# Given a z/VM system ID, return the engineering server and environment or 'not found'
+# Given a z/VM system ID, return the engineering server, CEC and environment 
 # Arg 1: LPAR being queried
+# Global variables: 
+#   engServer - the engineering server
+#   tgtCEC    - the CEC
+#   tgtEnv    - the environment
+#   consFile  - saved console file path
 #+--------------------------------------------------------------------------+
  {
   : SOURCE: ${BASH_SOURCE}
@@ -179,11 +189,14 @@ function getEngServer
   local i
   for i in `seq 1 $numLPARs`; do
     if [ "${arr[$i,systemID]}" = "$theLPAR" ]; then # found it
-      echo "${arr[$i,engServer]} ${arr[$i,env]}" # return engineering server
-      return                               # all done
+      engServer="${arr[$i,engServer]}"     # set eng'g server 
+      tgtCEC="${arr[$i,CEC]}"              # set CEC 
+      tgtEnv="${arr[$i,env]}"              # set environment 
+      consFile="$consolezDir/$tgtEnv:$tgtCEC:$systemID/$userID"
+      return 0                             # sucess  
     fi
   done
-  echo "not found"                         # did not find LPAR
+  return 1                                 # object not found 
  }                                         # getEngServer()
 
 #+--------------------------------------------------------------------------+
