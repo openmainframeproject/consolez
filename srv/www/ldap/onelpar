@@ -12,15 +12,17 @@
 function drawRows
 # Draw table row where each row gets max of $numCols user IDs
 #   Arg 1    : Data type: 'consdata' or 'nodata'
-#   Arg 2    : Environment:LPAR
+#   Arg 2    : Environment:CEC:LPAR
 #   Args 3-n : User IDs that have console data saved
 #+--------------------------------------------------------------------------+
  {
   local dataType=$1                        # 'consdata' or 'nodata'
-  local env=${2%:*}
-  local systemID=${2#*:}
+  local LPARspec=$2
   shift 2                                  # skip first two args
   userIDs=" $@ "                           # remaining user IDs with padded blanks
+
+  local env=`echo $LPARspec | awk -F: '{print $1}'`
+  local systemID=`echo $LPARspec | awk -F: '{print $3}'`
 
   # draw all rows with max of $numCols user IDs on each row
   local color="green"
@@ -74,7 +76,7 @@ function drawMainTable
   local consoleData                        # summary of console data
   local rc                                 # a return code
 
-  cmd="/usr/local/sbin/lscons -w $USER : $systemID" # saved consoles for this LPAR
+  cmd="/usr/local/sbin/lscons : $systemID" # saved consoles for this LPAR
   consoleData=`$cmd`                       # run the command
   rc=$?
   if [ "$rc" != 0 ]; then                  # not expected
@@ -99,16 +101,14 @@ function drawNoDataTable
 # Args: none
 #+--------------------------------------------------------------------------+
  {
-  title="Guests without console data" # title above table
+  title="Guests without console data"      # title above table
   local sshCmd="/usr/bin/ssh -q -o StrictHostKeyChecking=no" # command to SSH to other node
   local engData
-  engData=`getEngServer $systemID` # search input file for engineering server
-  if [ "$engData" = "not found" ]; then
+  getEngServer $systemID                   # search input file for engineering server
+  if [ $? != 0 ]; then                     # error
     echo "ERROR: Unexpected - did not find LPAR $systemID in $confFile"
     exit 1                                 # object not found
   fi
-  engServer="${engData% *}"                # eng'g server is first token
-  tgtEnv="${engData#* }"                   # environment is second token 
   local loggedUserIDs=`$sshCmd $engServer sudo vmcp QUERY NAMES`  # get all users logged on
   rc=$?
   if [ "$rc" != 0 ]; then                  # not expected
@@ -123,7 +123,7 @@ function drawNoDataTable
     | grep -v LOGN | grep -v LOGL | grep -v LOGV | awk '{print $1}' | sort | xargs`
 
   # draw the table
-  local noDataIDs="$tgtEnv:$systemID"      # user IDs that do not have saved consoles
+  local noDataIDs="$tgtEnv:$tgtCEC:$systemID" # user IDs that do not have saved consoles
   echo "<h2>$title</h2>"
   echo '<table class="consolezTable" align="center">' # start consolez table aligned in center
   local nextUserID

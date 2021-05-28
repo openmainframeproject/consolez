@@ -60,12 +60,6 @@ function parseArgs
         ;;
       -w)                                  # undocumented - called from Web UI
         webUI=yes
-        shift                              # one arg is user apache is running as 
-        if [ $# = 0 ]; then                # no description following --desc
-          echo "ERROR: No USER following the -w flag"
-          exit 3                           # internal server error 
-        fi
-        USER=$1                            # user apache is running as
         ;;
       -x|--debug)
         flags="$flags -x"
@@ -102,8 +96,7 @@ function checkEnv
     exit 4                                 # cannot perform operation
   fi
   if [ ${#USER} = 0 ]; then                # env var USER not set
-    echo "ERROR: The environment variable USER must be set"
-    exit 2                                 # not authorized
+    USER=`id | awk -F\( '{print $2}' | awk -F\) '{print $1}'` # get the current user
   fi
   if [ "$USER" = root ]; then 
     echo "ERROR: Sorry, cpcommand cannot run as root" 
@@ -126,14 +119,11 @@ function sendCPcommand
   local rc                                 # a return code
 
   verboseMsg "trying to get engineering server with: getEngServer $systemID"
-  local engData=`getEngServer $systemID` # search input file for engineering server
-  verboseMsg "engData = $engData"
-  if [ "$engData" = "not found" ]; then 
+  getEngServer $systemID
+  if [ $? != 0 ]; then 
     echo "ERROR: did not find LPAR $systemID in $confFile"
     exit 1                               # object not found
   fi
-  engServer="${engData% *}"              # eng'g server is first token 
-  tgtEnv="${engData#* }"                 # environment is second token 
   verboseMsg "found engineering server $engServer environment = $tgtEnv"
 
   # send the CP command

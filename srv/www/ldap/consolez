@@ -27,12 +27,13 @@ function drawUserIDcell
 #+--------------------------------------------------------------------------+
 function drawOneRow
 # Draw one table row for one z/VM LPAR - each row gets max of 10 user IDs
-#   Arg 1    : Environment:LPAR 
+#   Arg 1    : Environment:CEC:LPAR 
 #   Args 2-n : User IDs that have console data saved
 #+--------------------------------------------------------------------------+
  {
-  local env=${1%:*}
-  local systemID=${1#*:}
+  local env=`echo $1 | awk -F: '{print $1}'`
+  local CEC=`echo $1 | awk -F: '{print $2}'`
+  local systemID=`echo $1 | awk -F: '{print $3}'`
   shift                                    # skip arg 1
   local userIDs="$@"                       # remaining user IDs
   
@@ -47,8 +48,18 @@ function drawOneRow
   local numIDs
   local color="green"
   echo "<td><a style=\"color:$color;\" href=onelpar?$systemID>$systemID</a></td>" # column 1 - the LPAR
+
+  # check if this is a new CEC 
+  if [ "$curCEC" != "$CEC" ]; then         # this is a new environment
+    curCEC="$CEC"                          # new current CEC 
+    echo "<td>$CEC</td>"                   # column 2 - the CEC 
+  else
+    echo "<td>&nbsp;</td>"                 # column 2 - empty cell 
+  fi
+
+  # loop up to $numCols user IDs to show
   local nextUserID
-  let colNum=1                             # column number being drawn
+  let colNum=2                             # current column 
   for nextUserID in $userIDs; do           # loop through max number of user IDs
     if [ "$role" = netadmin ]; then        # user is a network admin
       echo $netadminIDs | grep $nextUserID >/dev/null
@@ -86,12 +97,16 @@ function drawMainTable
   #   ZSS:ZS02 ENGZS022 HTTPD MMACISA
   #   where the first token is the environment:system ID and remaining are uesr IDs
   local consoleData
-  consoleData=`/usr/local/sbin/lscons -w $USER` # list all saved consoles from the Web UI
+  consoleData=`/usr/local/sbin/lscons`    # list all saved consoles from the Web UI
   rc=$?
   if [ "$rc" != 0 ]; then                  # not expected
     startTable
     startRow "#FF6666"                     # draw row in light red
-    echo "<td><h2>Unexpected!</h2><p>/usr/local/sbin/lscons returned $rc</p>"
+    if [ "$rc" = 1 ]; then
+      echo "<td><h2>ERROR!</h2><p>No data found by lscons</p>"
+    else
+      echo "<td><h2>Unexpected!</h2><p>/usr/local/sbin/lscons returned $rc</p>"
+    fi
     echo "<p>$consoleData</p>"             # error message is the data
     echo "</td></tr></table>"              # end cell, row and table
     exit 3                                 # internal server error
@@ -112,6 +127,7 @@ function drawMainTable
 #+--------------------------------------------------------------------------+
 # global variables
 consolezUser="none"                        # user this script is running as
+curCEC="none"                              # the current CEC being processed
 curEnv="none"                              # the current environment being processed
 env=""                                     # environment passed in
 flags="-s"                                 # default is succinct output
